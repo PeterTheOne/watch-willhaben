@@ -5,7 +5,7 @@ is a node.js app that watches a [willhaben](https://www.willhaben.at/)
 search and reports new results to a telegram channel. It will only 
 watch the first page of results.
 
-In the first few intervals it my report some urls that are not really 
+In the first few intervals it may report some urls that are not really 
 new, but that should stop in a while. If all search results are on the 
 same results page false reports won't happen.
 
