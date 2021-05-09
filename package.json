@@ -10,7 +10,7 @@
   "author": "Peter Grassberger <petertheone@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^8.2.0",
+    "dotenv": "^9.0.0",
     "node-fetch": "^2.6.1",
     "parse5": "^6.0.0",
     "xmldom": "^0.3.0",
