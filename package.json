@@ -12,7 +12,7 @@
   "dependencies": {
     "dotenv": "^8.2.0",
     "node-fetch": "^2.6.1",
-    "parse5": "^6.0.0",
+    "parse5": "^7.0.0",
     "xmldom": "^0.3.0",
     "xmlserializer": "^0.6.1",
     "xpath": "0.0.30"
