@@ -23,3 +23,13 @@ Requires [npm and node.js](https://nodejs.org).
     - Fill `WILLHABEN_URL` with your search page. If you can, increase results per page.
     - Fill `INTERVAL` with interval in milliseconds (1000 is one second) it should look for updates.
 3. run `npm run start` to start.
+
+
+Docker
+---
+
+1. Build docker image via `docker build -t watch-willhaben-test . `
+2. Run docker image mounting your `.env` file to get correct results
+`docker run --rm -ti -v "$(pwd)"/.env:/app/.env watch-willhaben-test`
+3. For running on server detached and with restart and some name
+`docker run -d --restart unless-stopped -v "$(pwd)"/.env:/app/.env --name "willhaben-1" watch-willhaben-test`
