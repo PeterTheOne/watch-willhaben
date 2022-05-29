@@ -50,7 +50,7 @@ async function start() {
           //console.log('new', r.link, r.ignore, foundHighlightWordStr);
           // Don't message for the first 10 fetches.
           if (countFetches > 10 && !r.ignore) {
-            fetch(telegramMessagePath + encodeURI(`${r.link} ${foundHighlightWordStr}`));
+            fetch(telegramMessagePath + encodeURI(r.link) + encodeURIComponent(` ${foundHighlightWordStr}`));
             console.log('new', r.link, foundHighlightWordStr);
           }
         }
