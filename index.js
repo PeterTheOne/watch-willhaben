@@ -6,63 +6,84 @@ const Dom = require('xmldom').DOMParser;
 require('dotenv').config();
 
 const WILLHABEN_URL = process.env.WILLHABEN_URL;
-const INTERVAL = process.env.INTERVAL;
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN; // bot from https://t.me/botfather
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // id from https://telegram.me/userinfobot
-const XPATH_QUERY = process.env.XPATH_QUERY;
+const INTERVAL = parseInt(process.env.INTERVAL, 10);
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const HIGHLIGHT_WORDS = process.env.HIGHLIGHT_WORDS.split(',');
 const IGNORE_WORDS = process.env.IGNORE_WORDS.split(',');
 
-const telegramMessagePath = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=`;
-
-async function fetchLinks(url, query, highlightWords, ignoreWords) {
-  const result = await fetch(url);
-  const html = await result.text();
-  const document = parse5.parse(html.toString());
-  const xhtml = xmlser.serializeToString(document);
-  const doc = new Dom().parseFromString(xhtml, 'text/html');
-  const select = xpath.useNamespaces({"x": "http://www.w3.org/1999/xhtml"});
-  const nodes = select(query, doc);
-  const willhabenURL = new URL(WILLHABEN_URL);
-  return nodes
-    .map((node) => {
-    const url = new URL(willhabenURL.protocol + '//' + willhabenURL.host + node.value);
-    return {
-      link: url.origin + url.pathname,
-      ignore: ignoreWords.some(element => node.value.includes(element)),
-      foundHighlightWords: highlightWords.filter(h => node.value.includes(h)),
-    };
+async function sendMessageToBot(message) {
+  const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+  const params = new URLSearchParams({
+    chat_id: TELEGRAM_CHAT_ID,
+    text: message
   });
+
+  try {
+    const response = await fetch(`${telegramApiUrl}?${params}`, { method: 'POST' });
+  } catch (error) {
+    console.error('Error sending message to the bot:', error);
+  }
 }
 
+async function fetchLinks(url, highlightWords, ignoreWords) {
+  const response = await fetch(url);
+  const html = await response.text();
+  const document = parse5.parse(html.toString());
+  const xhtml = xmlser.serializeToString(document);
+  const doc = new Dom().parseFromString(xhtml);
+  const select = xpath.useNamespaces({ "x": "http://www.w3.org/1999/xhtml" });
+
+  const nodes = select("//x:a[contains(@href, '/iad/immobilien/d/mietwohnungen/')]", doc);
+
+  return nodes.map(node => {
+    const href = node.getAttribute('href');
+    const absoluteUrl = new URL(href, url).href;
+    const isListing = absoluteUrl.includes('/iad/immobilien/d/mietwohnungen/');
+
+    // Determine if any ignore word is present in the URL
+    const hasIgnoreWord = ignoreWords.some(word => href.includes(word));
+
+    console.log(`URL: ${absoluteUrl}, Is Listing: ${isListing}, Has Ignore Word: ${hasIgnoreWord}`);
+
+    return {
+      link: absoluteUrl,
+      ignore: !isListing,
+      foundHighlightWords: highlightWords.filter(word => href.includes(word)),
+    };
+  }).filter(link => !link.ignore);
+}
+
+
 async function start() {
-  const linkCache = [];
+  const linkCache = new Set();
   let countFetches = 0;
 
   const loop = async () => {
     try {
-      console.log('check for new links', countFetches);
-      const newResults = await fetchLinks(WILLHABEN_URL, XPATH_QUERY, HIGHLIGHT_WORDS, IGNORE_WORDS);
-      newResults.forEach((r) => {
-        if (!linkCache.includes(r.link)) {
-          linkCache.push(r.link);
-          const foundHighlightWordStr = r.foundHighlightWords.map(h => `#${h}`.replace('-', '')).join(' ');
-          //console.log('new', r.link, r.ignore, foundHighlightWordStr);
-          // Don't message for the first 10 fetches.
-          if (countFetches > 10 && !r.ignore) {
-            fetch(telegramMessagePath + encodeURI(r.link) + encodeURIComponent(` ${foundHighlightWordStr}`));
-            console.log('new', r.link, foundHighlightWordStr);
-          }
+      console.log(`Checking for new links at fetch count: ${countFetches}`);
+      const newResults = await fetchLinks(WILLHABEN_URL, HIGHLIGHT_WORDS, IGNORE_WORDS);
+      console.log('newResults: ',newResults)
+      newResults.forEach(async ({ link, foundHighlightWords }) => {
+        if (!linkCache.has(link)) {
+          linkCache.add(link); // Add the new link to the cache
+          const highlightStr = foundHighlightWords.map(word => `#${word}`).join(' ');
+          const message = `New listing found: ${link} ${highlightStr}`;
+          console.log(message);
+          await sendMessageToBot(message); // Send the message to the bot
         }
       });
+
       countFetches++;
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(`An error occurred: ${error}`);
     }
     setTimeout(loop, INTERVAL);
-  }
+  };
 
   loop();
 }
+
+
 
 start();
